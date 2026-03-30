@@ -1,0 +1,85 @@
+services:
+  postgres-auth:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: ${POSTGRES_AUTH_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_AUTH_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_AUTH_USER} -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-app:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: portal_db
+      POSTGRES_USER: ${POSTGRES_APP_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_APP_PASSWORD}
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_app_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_APP_USER} -d portal_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+    environment:
+      DJANGO_SECRET_KEY: ${AUTH_DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+      DATABASE_URL: postgresql://${POSTGRES_AUTH_USER}:${POSTGRES_AUTH_PASSWORD}@postgres-auth:5432/auth_db
+    ports:
+      - "8000:8000"
+
+  independent-backend:
+    build:
+      context: ./independent-website/backend
+      dockerfile: Dockerfile
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    environment:
+      DJANGO_SECRET_KEY: ${PORTAL_DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+      DATABASE_URL: postgresql://${POSTGRES_APP_USER}:${POSTGRES_APP_PASSWORD}@postgres-app:5432/portal_db
+      AUTH_SERVICE_URL: http://auth-service:8000
+    ports:
+      - "8001:8001"
+
+  react-frontend:
+    build:
+      context: ./independent-website/frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_AUTH_URL: ${VITE_AUTH_URL}
+        VITE_PORTAL_URL: ${VITE_PORTAL_URL}
+    depends_on:
+      independent-backend:
+        condition: service_started
+    environment:
+      VITE_AUTH_URL: ${VITE_AUTH_URL}
+      VITE_PORTAL_URL: ${VITE_PORTAL_URL}
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres_auth_data:
+  postgres_app_data:

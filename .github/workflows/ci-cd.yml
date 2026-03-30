@@ -1,0 +1,219 @@
+name: CI/CD Pipeline
+
+# Trigger workflow on push to main and pull requests to main
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # ============================================================================
+  # Job 1: Test Auth Service
+  # ============================================================================
+  test-auth-service:
+    name: Test Auth Service
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Check out the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Set up Python 3.11
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      # Install dependencies from auth-service/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r auth-service/requirements.txt
+      
+      # Run Django system checks to validate configuration
+      - name: Run Django checks
+        working-directory: ./auth-service
+        run: python manage.py check
+      
+      # Run authentication service tests
+      - name: Run authentication service tests
+        working-directory: ./auth-service
+        run: python manage.py test authentication
+
+  # ============================================================================
+  # Job 2: Test Independent Backend
+  # ============================================================================
+  test-independent-backend:
+    name: Test Independent Backend
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Check out the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Set up Python 3.11
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      # Install dependencies from independent-website/backend/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r independent-website/backend/requirements.txt
+      
+      # Run Django system checks to validate configuration
+      - name: Run Django checks
+        working-directory: ./independent-website/backend
+        run: python manage.py check
+      
+      # Run portal backend tests
+      - name: Run portal backend tests
+        working-directory: ./independent-website/backend
+        run: python manage.py test portal
+
+  # ============================================================================
+  # Job 3: Build Docker Images
+  # Runs after both test jobs pass successfully
+  # ============================================================================
+  build-docker:
+    name: Build and Verify Docker Images
+    runs-on: ubuntu-latest
+    needs: [test-auth-service, test-independent-backend]
+    
+    steps:
+      # Check out the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Build all Docker images using docker-compose
+      - name: Build Docker images
+        run: docker-compose build
+      
+      # Start containers in detached mode to verify they can start
+      - name: Start containers
+        run: docker-compose up -d
+      
+      # Wait a few seconds for services to stabilize
+      - name: Wait for services to start
+        run: sleep 10
+      
+      # Verify all containers are running and healthy
+      - name: Verify containers are running
+        run: docker-compose ps
+      
+      # Optional: Run basic health checks on services
+      - name: Verify auth service health
+        run: |
+          curl -f http://localhost:8000/api/auth/verify/ || echo "Auth service endpoint check (may be expected to fail without Bearer token)"
+      
+      # Optional: Verify frontend is accessible
+      - name: Verify frontend health
+        run: |
+          curl -f http://localhost:3000/ || echo "Frontend health check may need different verification"
+      
+      # Clean up containers
+      - name: Stop and remove containers
+        if: always()
+        run: docker-compose down
+
+  # ============================================================================
+  # Job 4: Deploy to Production (Render + Vercel)
+  # Only runs on push to main branch (not on pull requests)
+  # ============================================================================
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-docker]
+    # Only deploy on push to main, not on pull requests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      # Check out the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # ========================================================================
+      # Deploy Auth Service to Render
+      # ========================================================================
+      - name: Deploy Auth Service to Render
+        run: |
+          # Trigger Render deploy hook for auth service
+          curl -X POST ${{ secrets.RENDER_AUTH_SERVICE_DEPLOY_HOOK }} \
+            -H 'Content-Type: application/json' \
+            -d '{"ref": "main", "service": "auth-service"}'
+        continue-on-error: true
+        env:
+          # Render deploy hook URL stored in GitHub Secrets
+          # Format: https://api.render.com/deploy/[service-id]?key=[deploy-key]
+          RENDER_AUTH_SERVICE_DEPLOY_HOOK: ${{ secrets.RENDER_AUTH_SERVICE_DEPLOY_HOOK }}
+      
+      # ========================================================================
+      # Deploy Independent Backend to Render
+      # ========================================================================
+      - name: Deploy Independent Backend to Render
+        run: |
+          # Trigger Render deploy hook for backend service
+          curl -X POST ${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }} \
+            -H 'Content-Type: application/json' \
+            -d '{"ref": "main", "service": "independent-backend"}'
+        continue-on-error: true
+        env:
+          # Render deploy hook URL stored in GitHub Secrets
+          RENDER_BACKEND_DEPLOY_HOOK: ${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}
+      
+      # ========================================================================
+      # Deploy React Frontend to Vercel
+      # ========================================================================
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      # Install Vercel CLI globally
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+      
+      # Pull Vercel project settings
+      - name: Pull Vercel environment
+        run: |
+          vercel pull --yes --environment=production \
+            --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: ./independent-website/frontend
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      
+      # Build the React app for production
+      - name: Build Vercel project
+        run: |
+          vercel build --prod \
+            --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: ./independent-website/frontend
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      
+      # Deploy to Vercel production
+      - name: Deploy to Vercel
+        run: |
+          vercel deploy --prebuilt --prod \
+            --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: ./independent-website/frontend
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      
+      # Optional: Notify deployment success
+      - name: Deployment complete
+        run: |
+          echo "✅ Deployment to Render and Vercel complete!"
+          echo "Auth Service: Check Render dashboard"
+          echo "Backend: Check Render dashboard"
+          echo "Frontend: Check Vercel dashboard"

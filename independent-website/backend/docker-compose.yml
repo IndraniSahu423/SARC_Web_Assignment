@@ -1,0 +1,80 @@
+services:
+  auth-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: auth_service_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Indranil@123
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d auth_service_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  auth-web:
+    build:
+      context: ../../auth-service
+      dockerfile: Dockerfile
+    env_file:
+      - ../../auth-service/.env
+    environment:
+      DB_HOST: auth-db
+      DB_PORT: 5432
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    ports:
+      - "8002:8000"
+
+  portal-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - portal_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  portal-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DB_HOST: portal-db
+      DB_PORT: 5432
+      AUTH_SERVICE_URL: http://auth-web:8000
+    depends_on:
+      portal-db:
+        condition: service_healthy
+      auth-web:
+        condition: service_started
+    ports:
+      - "8001:8001"
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_AUTH_URL: http://localhost:8002
+        VITE_PORTAL_URL: http://localhost:8001
+    depends_on:
+      portal-web:
+        condition: service_started
+      auth-web:
+        condition: service_started
+    ports:
+      - "3000:80"
+
+volumes:
+  auth_postgres_data:
+  portal_postgres_data:
