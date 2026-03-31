@@ -158,10 +158,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Verify Node and npm
+        run: |
+          node --version
+          npm --version
       
       - name: Install dependencies
         working-directory: ./independent-website/frontend
-        run: npm install
+        run: npm ci
       
       - name: Build frontend
         working-directory: ./independent-website/frontend
@@ -169,12 +174,6 @@ jobs:
           VITE_AUTH_URL: http://localhost:8000
           VITE_PORTAL_URL: http://localhost:8001
         run: npm run build
-      
-      - name: Upload frontend build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-build
-          path: ./independent-website/frontend/dist
 
   # ============================================================================
   # Job 5: Deploy Frontend to Vercel
@@ -189,12 +188,22 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Download frontend build artifacts
-        uses: actions/download-artifact@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
         with:
-          name: frontend-build
-          path: ./independent-website/frontend/dist
+          node-version: '20'
+      
+      - name: Install dependencies
+        working-directory: ./independent-website/frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./independent-website/frontend
+        env:
+          VITE_AUTH_URL: http://localhost:8000
+          VITE_PORTAL_URL: http://localhost:8001
+        run: npm run build
       
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
