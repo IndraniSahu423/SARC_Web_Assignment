@@ -8,10 +8,12 @@ ENV VITE_AUTH_URL=${VITE_AUTH_URL}
 ENV VITE_PORTAL_URL=${VITE_PORTAL_URL}
 
 COPY package.json /app/
-RUN npm install
+COPY package-lock.json /app/
+RUN npm ci
 
 COPY . /app/
-RUN npm run build
+RUN chmod +x ./node_modules/.bin/vite || true
+RUN node ./node_modules/vite/bin/vite.js build
 
 FROM nginx:1.27-alpine
 
