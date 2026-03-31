@@ -167,13 +167,17 @@ jobs:
       - name: Install dependencies
         working-directory: ./independent-website/frontend
         run: npm ci
+
+      - name: Ensure vite binary is executable
+        working-directory: ./independent-website/frontend
+        run: chmod +x ./node_modules/.bin/vite || true
       
       - name: Build frontend
         working-directory: ./independent-website/frontend
         env:
           VITE_AUTH_URL: http://localhost:8000
           VITE_PORTAL_URL: http://localhost:8001
-        run: npm run build
+        run: node ./node_modules/vite/bin/vite.js build
 
   # ============================================================================
   # Job 5: Deploy Frontend to Vercel
@@ -198,12 +202,16 @@ jobs:
         working-directory: ./independent-website/frontend
         run: npm ci
 
+      - name: Ensure vite binary is executable
+        working-directory: ./independent-website/frontend
+        run: chmod +x ./node_modules/.bin/vite || true
+
       - name: Build frontend
         working-directory: ./independent-website/frontend
         env:
           VITE_AUTH_URL: http://localhost:8000
           VITE_PORTAL_URL: http://localhost:8001
-        run: npm run build
+        run: node ./node_modules/vite/bin/vite.js build
       
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
