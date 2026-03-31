@@ -9,6 +9,7 @@ class TokenVerificationMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
         self.exempt_paths = {
+            "/",
             "/api/portal/register/",
             "/admin/",
         }

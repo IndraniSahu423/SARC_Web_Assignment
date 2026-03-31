@@ -80,6 +80,25 @@ services:
     ports:
       - "3000:80"
 
+  pgadmin:
+    image: dpage/pgadmin4:8
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+      postgres-app:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@sarc.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+
 volumes:
   postgres_auth_data:
   postgres_app_data:
+  pgadmin_data:

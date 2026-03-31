@@ -186,7 +186,19 @@ cd SARC_Web_Assignment
 
 #### Step 2: Create Environment File
 
-Create `.env` file in project root with these values:
+Copy the template and then edit values if needed:
+
+```bash
+cp .env.template .env
+```
+
+Windows (CMD):
+
+```cmd
+copy .env.template .env
+```
+
+Default template content:
 
 ```env
 # PostgreSQL Configuration
@@ -204,6 +216,10 @@ DJANGO_ALLOWED_HOSTS=*
 # Service URLs
 VITE_AUTH_URL=http://localhost:8000
 VITE_PORTAL_URL=http://localhost:8001
+
+# pgAdmin
+PGADMIN_DEFAULT_EMAIL=admin@sarc.com
+PGADMIN_DEFAULT_PASSWORD=admin123
 ```
 
 #### Step 3: Build and Start Services
@@ -478,6 +494,7 @@ SARC_Web_Assignment/
 │
 ├── docker-compose.yml             # Root compose (all 5 services)
 ├── .gitignore                     # Exclude .env from git
+├── .env.template                  # Safe environment template (committed)
 ├── .env                           # (Create locally, don't commit)
 └── README.md                      # This file
 ```

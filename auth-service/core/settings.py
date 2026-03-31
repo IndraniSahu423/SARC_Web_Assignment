@@ -22,11 +22,18 @@ def get_database_config():
             "PORT": str(parsed.port or "5432"),
         }
 
+    db_password = os.getenv("DB_PASSWORD", "")
+    if not db_password:
+        return {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+
     return {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.getenv("DB_NAME", "auth_service_db"),
         "USER": os.getenv("DB_USER", "postgres"),
-        "PASSWORD": os.getenv("DB_PASSWORD", ""),
+        "PASSWORD": db_password,
         "HOST": os.getenv("DB_HOST", "localhost"),
         "PORT": os.getenv("DB_PORT", "5432"),
     }
