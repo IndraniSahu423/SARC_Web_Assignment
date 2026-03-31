@@ -99,15 +99,26 @@ jobs:
       - name: Verify Docker tooling
         run: |
           docker --version
-          docker compose version
+          docker compose version || docker-compose version
+
+      - name: Select compose command
+        run: |
+          if docker compose version >/dev/null 2>&1; then
+            echo "COMPOSE_CMD=docker compose" >> $GITHUB_ENV
+          elif docker-compose version >/dev/null 2>&1; then
+            echo "COMPOSE_CMD=docker-compose" >> $GITHUB_ENV
+          else
+            echo "No docker compose command found"
+            exit 127
+          fi
       
       # Build all Docker images using Docker Compose v2
       - name: Build Docker images
-        run: docker compose build
+        run: $COMPOSE_CMD build
       
       # Start containers in detached mode to verify they can start
       - name: Start containers
-        run: docker compose up -d
+        run: $COMPOSE_CMD up -d
       
       # Wait a few seconds for services to stabilize
       - name: Wait for services to start
@@ -115,7 +126,7 @@ jobs:
       
       # Verify all containers are running and healthy
       - name: Verify containers are running
-        run: docker compose ps
+        run: $COMPOSE_CMD ps
       
       # Optional: Run basic health checks on services
       - name: Verify auth service health
@@ -130,7 +141,7 @@ jobs:
       # Clean up containers
       - name: Stop and remove containers
         if: always()
-        run: docker compose down
+        run: $COMPOSE_CMD down
 
   # ============================================================================
   # Job 4: Build Frontend (Node dependencies check)
@@ -155,8 +166,8 @@ jobs:
       - name: Build frontend
         working-directory: ./independent-website/frontend
         env:
-          VITE_AUTH_URL: ${{ vars.VITE_AUTH_URL || 'http://localhost:8000' }}
-          VITE_PORTAL_URL: ${{ vars.VITE_PORTAL_URL || 'http://localhost:8001' }}
+          VITE_AUTH_URL: http://localhost:8000
+          VITE_PORTAL_URL: http://localhost:8001
         run: npm run build
       
       - name: Upload frontend build artifacts
