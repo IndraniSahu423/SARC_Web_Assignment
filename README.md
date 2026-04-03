@@ -8,11 +8,11 @@ A production-ready **Single Sign-On (SSO) system** for SARC community portals. P
 
 **SARC SSO** is an authentication-as-a-service platform similar to **Google SSO** or **OAuth2**, but purpose-built for SARC hostels and communities. It enables:
 
-- ✅ **Centralized User Management** — All users register/login at one central auth service
-- ✅ **Token-Based Authentication** — Secure JWT tokens for stateless API calls
-- ✅ **Independent Backends** — Multiple portals (dashboard, forum, etc.) share the same auth service
-- ✅ **No Password Leaks** — Passwords never leave the auth service
-- ✅ **Scalable** — Separated concerns allow independent scaling
+-  **Centralized User Management** — All users register/login at one central auth service
+-  **Token-Based Authentication** — Secure JWT tokens for stateless API calls
+-  **Independent Backends** — Multiple portals (dashboard, forum, etc.) share the same auth service
+-  **No Password Leaks** — Passwords never leave the auth service
+-  **Scalable** — Separated concerns allow independent scaling
 
 **Use Case:** SARC community wants one login for all portals (dashboard, event registration, room booking, etc.).
 
@@ -159,7 +159,6 @@ User Browser                Frontend              Portal Backend           Auth 
 
 ### Prerequisites
 
-Ensure you have installed:
 
 - **Docker** v20.10+ (includes Docker Compose)
 - **Git** for cloning the repository
@@ -198,29 +197,11 @@ Windows (CMD):
 copy .env.template .env
 ```
 
-Default template content:
+Environment reference:
 
-```env
-# PostgreSQL Configuration
-POSTGRES_AUTH_USER=auth_user
-POSTGRES_AUTH_PASSWORD=auth_secure_password_123
-POSTGRES_APP_USER=portal_user
-POSTGRES_APP_PASSWORD=portal_secure_password_123
-
-# Django Configuration
-AUTH_DJANGO_SECRET_KEY=django-insecure-your-secret-key-here-min-50-chars
-PORTAL_DJANGO_SECRET_KEY=django-insecure-another-secret-key-here-min-50-chars
-DJANGO_DEBUG=True
-DJANGO_ALLOWED_HOSTS=*
-
-# Service URLs
-VITE_AUTH_URL=http://localhost:8000
-VITE_PORTAL_URL=http://localhost:8001
-
-# pgAdmin
-PGADMIN_DEFAULT_EMAIL=admin@sarc.com
-PGADMIN_DEFAULT_PASSWORD=admin123
-```
+- Use `.env.template` as the single source of configuration values.
+- Keep `.env` local and do not commit it.
+- For production, replace all placeholder credentials and secret keys.
 
 #### Step 3: Build and Start Services
 
