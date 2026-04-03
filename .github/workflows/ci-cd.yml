@@ -92,9 +92,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Compose requires environment values; use tracked template for CI
       - name: Prepare environment file
-        run: cp .env.template .env
+        run: |
+          cat > .env << 'EOF'
+          SECRET_KEY=ci-secret-key-for-testing
+          DEBUG=True
+          DB_NAME=auth_db
+          DB_USER=postgres
+          DB_PASSWORD=postgres
+          DB_HOST=postgres-auth
+          DB_PORT=5432
+          PORTAL_DB_NAME=portal_db
+          PORTAL_DB_USER=postgres
+          PORTAL_DB_PASSWORD=postgres
+          PORTAL_DB_HOST=postgres-app
+          PORTAL_DB_PORT=5432
+          AUTH_SERVICE_URL=http://auth-service:8000
+          EOF
 
       - name: Verify Docker tooling
         run: |
@@ -114,34 +128,28 @@ jobs:
       
       # Build all Docker images using Docker Compose v2
       - name: Build Docker images
-        run: $COMPOSE_CMD build
+        run: ${{ env.COMPOSE_CMD }} build
       
-      # Start containers in detached mode to verify they can start
       - name: Start containers
-        run: $COMPOSE_CMD up -d
+        run: ${{ env.COMPOSE_CMD }} up -d
       
-      # Wait a few seconds for services to stabilize
       - name: Wait for services to start
         run: sleep 20
       
-      # Verify all containers are running and healthy
       - name: Verify containers are running
-        run: $COMPOSE_CMD ps
+        run: ${{ env.COMPOSE_CMD }} ps
       
-      # Optional: Run basic health checks on services
       - name: Verify auth service health
         run: |
-          curl -f http://localhost:8000/api/auth/verify/ || echo "Auth service endpoint check (may be expected to fail without Bearer token)"
+          curl -f http://localhost:8000/api/auth/verify/ || echo "Auth service endpoint check (expected 401 without token)"
       
-      # Optional: Verify frontend is accessible
       - name: Verify frontend health
         run: |
-          curl -f http://localhost:3000/ || echo "Frontend health check may need different verification"
+          curl -f http://localhost:3000/ || echo "Frontend health check"
       
-      # Clean up containers
       - name: Stop and remove containers
         if: always()
-        run: $COMPOSE_CMD down
+        run: ${{ env.COMPOSE_CMD }} down -v
 
   # ============================================================================
   # Job 4: Build Frontend (Node dependencies check)
