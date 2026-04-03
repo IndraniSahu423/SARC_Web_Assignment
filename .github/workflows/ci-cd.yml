@@ -95,19 +95,16 @@ jobs:
       - name: Prepare environment file
         run: |
           cat > .env << 'EOF'
-          SECRET_KEY=ci-secret-key-for-testing
-          DEBUG=True
-          DB_NAME=auth_db
-          DB_USER=postgres
-          DB_PASSWORD=postgres
-          DB_HOST=postgres-auth
-          DB_PORT=5432
-          PORTAL_DB_NAME=portal_db
-          PORTAL_DB_USER=postgres
-          PORTAL_DB_PASSWORD=postgres
-          PORTAL_DB_HOST=postgres-app
-          PORTAL_DB_PORT=5432
-          AUTH_SERVICE_URL=http://auth-service:8000
+          POSTGRES_AUTH_USER=postgres
+          POSTGRES_AUTH_PASSWORD=postgres
+          POSTGRES_APP_USER=postgres
+          POSTGRES_APP_PASSWORD=postgres
+          AUTH_DJANGO_SECRET_KEY=ci-auth-secret-key-for-testing
+          PORTAL_DJANGO_SECRET_KEY=ci-portal-secret-key-for-testing
+          DJANGO_DEBUG=True
+          DJANGO_ALLOWED_HOSTS=*
+          VITE_AUTH_URL=http://localhost:8000
+          VITE_PORTAL_URL=http://localhost:8001
           EOF
 
       - name: Verify Docker tooling
