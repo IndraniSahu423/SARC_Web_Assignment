@@ -4,7 +4,7 @@
 .env.*.local
 .env.development
 .env.production
-
+.env.template
 # Python
 __pycache__/
 *.py[cod]
